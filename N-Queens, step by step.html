@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>N-Queens, step by step</title>
+<style>
+:root{--bg:#f4f6f9;--panel:#fff;--ink:#1b2735;--muted:#5d6b7b;--line:#d5dce5;--sqL:#e3e9f0;--sqD:#9db0c4;--queen:#1b2735;--bad:#d64545;--good:#2a9d6b;--accent:#2f5fd0;--accentInk:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12171e;--panel:#1b222b;--ink:#e8edf3;--muted:#98a5b4;--line:#2e3846;--sqL:#38475a;--sqD:#26313f;--queen:#f1f4f8;--bad:#ff6b6b;--good:#4cc38a;--accent:#7aa2ff;--accentInk:#0d1420}}
+:root[data-theme="dark"]{--bg:#12171e;--panel:#1b222b;--ink:#e8edf3;--muted:#98a5b4;--line:#2e3846;--sqL:#38475a;--sqD:#26313f;--queen:#f1f4f8;--bad:#ff6b6b;--good:#4cc38a;--accent:#7aa2ff;--accentInk:#0d1420}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:980px;margin:0 auto;padding:24px 16px 40px}
+h1{font:600 clamp(26px,5vw,38px)/1.15 Georgia,"Iowan Old Style",serif;margin:0 0 6px}
+p.lead{margin:0 0 20px;color:var(--muted);max-width:60ch}
+.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);font:inherit;font-weight:600;padding:8px 14px;cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+@media (max-width:760px){.layout{grid-template-columns:1fr}}
+.board{container-type:inline-size;display:grid;width:100%;max-width:560px;aspect-ratio:1;border:2px solid var(--ink);border-radius:4px;overflow:hidden;background:var(--panel)}
+.cell{position:relative;display:flex;align-items:center;justify-content:center;font-size:calc(100cqw / var(--n) * .7);line-height:1;transition:background .15s}
+.cell.l{background:var(--sqL)}.cell.d{background:var(--sqD)}
+.cell.att::after{content:"";position:absolute;inset:0;background:var(--bad);opacity:.22}
+.cell .q{position:relative;z-index:1;color:var(--queen);transition:transform .15s}
+.cell.try .q{color:var(--accent);opacity:.9}
+.cell.try.bad .q{color:var(--bad)}
+.cell.try{box-shadow:inset 0 0 0 3px var(--accent)}
+.cell.try.bad{box-shadow:inset 0 0 0 3px var(--bad)}
+.board.solved .cell .q{color:var(--good)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+button.b{font:inherit;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+button.b.primary{background:var(--accent);color:var(--accentInk);border-color:var(--accent)}
+button.b:focus-visible,.tabs button:focus-visible,.thumb:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+label{display:block;font-size:14px;color:var(--muted);margin-bottom:4px}
+input[type=range]{width:100%;margin:0 0 14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--bg);border-radius:8px;padding:8px;text-align:center}
+.stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.status{min-height:3em;font-size:14px;color:var(--muted)}
+.status.ok{color:var(--good);font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;margin-top:20px}
+.thumb{padding:0;border:2px solid var(--line);border-radius:6px;background:none;cursor:pointer;overflow:hidden}
+.thumb[aria-current="true"]{border-color:var(--accent)}
+.mini{display:grid;aspect-ratio:1;width:100%}
+.mini i{display:block}.mini .l{background:var(--sqL)}.mini .d{background:var(--sqD)}
+.mini i.q{background:var(--queen);border-radius:50%;transform:scale(.62)}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+<h1>N-Queens, step by step</h1>
+<p class="lead">Place queens so none can attack another. Watch the backtracking search try squares, hit dead ends and step back, or browse every solution it finds.</p>
+
+<div class="tabs" role="tablist">
+  <button role="tab" id="tabWatch" aria-selected="true">Watch the search</button>
+  <button role="tab" id="tabBrowse" aria-selected="false">Browse solutions</button>
+</div>
+
+<div class="layout">
+  <div>
+    <div class="board" id="board" role="img" aria-label="Chessboard"></div>
+    <div class="thumbs" id="thumbs" hidden></div>
+  </div>
+
+  <div class="panel">
+    <label for="size">Board size: <b id="sizeOut">8</b> × <b id="sizeOut2">8</b></label>
+    <input type="range" id="size" min="4" max="10" value="8">
+
+    <div id="watchCtl">
+      <div class="row">
+        <button class="b primary" id="play">Play</button>
+        <button class="b" id="step">Step</button>
+        <button class="b" id="next">Next solution</button>
+        <button class="b" id="reset">Reset</button>
+      </div>
+      <label for="speed">Speed</label>
+      <input type="range" id="speed" min="1" max="100" value="55">
+      <div class="stats">
+        <div class="stat"><b id="sSteps">0</b><span>steps</span></div>
+        <div class="stat"><b id="sBack">0</b><span>backtracks</span></div>
+        <div class="stat"><b id="sSol">0</b><span>solutions</span></div>
+      </div>
+      <div class="status" id="status" aria-live="polite">Press Play or Step to begin.</div>
+      <div class="legend">
+        <span><i style="background:var(--accent)"></i>square being tried</span>
+        <span><i style="background:var(--bad);opacity:.5"></i>attacked</span>
+        <span><i style="background:var(--good)"></i>solved</span>
+      </div>
+    </div>
+
+    <div id="browseCtl" hidden>
+      <div class="row">
+        <button class="b" id="prev">Previous</button>
+        <button class="b primary" id="nextSol">Next</button>
+      </div>
+      <div class="stats" style="grid-template-columns:1fr 1fr">
+        <div class="stat"><b id="bIdx">1</b><span>showing</span></div>
+        <div class="stat"><b id="bTot">0</b><span>total solutions</span></div>
+      </div>
+      <div class="status">Pick any thumbnail below the board to jump to that solution.</div>
+    </div>
+  </div>
+</div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const boardEl = $('board');
+let n = 8, state = [], tryCell = null, solved = false;
+
+// ---- the same backtracking idea as the original code, written as a generator
+// so the page can pause after every decision
+function* search(n){
+  const cols = new Set(), diag = new Set(), anti = new Set(), st = [];
+  function* bt(row){
+    if (row === n){ yield {t:'sol', st:[...st]}; return; }
+    for (let c = 0; c < n; c++){
+      const bad = cols.has(c) || diag.has(row - c) || anti.has(row + c);
+      yield {t:'try', st:[...st], r:row, c, bad};
+      if (bad) continue;
+      cols.add(c); diag.add(row - c); anti.add(row + c); st.push(c);
+      yield {t:'place', st:[...st]};
+      yield* bt(row + 1);
+      st.pop(); cols.delete(c); diag.delete(row - c); anti.delete(row + c);
+      yield {t:'back', st:[...st], r:row, c};
+    }
+  }
+  yield* bt(0);
+}
+function allSolutions(n){
+  const out = [], cols = new Set(), diag = new Set(), anti = new Set(), st = [];
+  (function bt(r){
+    if (r === n){ out.push([...st]); return; }
+    for (let c = 0; c < n; c++){
+      if (cols.has(c) || diag.has(r - c) || anti.has(r + c)) continue;
+      cols.add(c); diag.add(r - c); anti.add(r + c); st.push(c);
+      bt(r + 1);
+      st.pop(); cols.delete(c); diag.delete(r - c); anti.delete(r + c);
+    }
+  })(0);
+  return out;
+}
+
+// ---- drawing
+function buildBoard(){
+  boardEl.style.gridTemplate = `repeat(${n}, 1fr) / repeat(${n}, 1fr)`;
+  boardEl.style.setProperty('--n', n);
+  boardEl.innerHTML = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++){
+    const d = document.createElement('div');
+    d.className = 'cell ' + ((r + c) % 2 ? 'd' : 'l');
+    d.innerHTML = '<span class="q"></span>';
+    boardEl.appendChild(d);
+  }
+}
+function draw(st, tc, isSolved){
+  const cells = boardEl.children;
+  const attacked = new Set();
+  st.forEach((c, r) => {
+    for (let i = 0; i < n; i++){
+      attacked.add(r * n + i); attacked.add(i * n + c);
+      const a = r + (i - c), b = r - (i - c);
+      if (a >= 0 && a < n && i >= 0) attacked.add(a * n + i);
+      if (b >= 0 && b < n && i >= 0) attacked.add(b * n + i);
+    }
+  });
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++){
+    const el = cells[r * n + c], q = el.firstChild;
+    const placed = st[r] === c, isTry = tc && tc.r === r && tc.c === c;
+    el.classList.toggle('att', !isSolved && attacked.has(r * n + c) && !placed);
+    el.classList.toggle('try', !!isTry);
+    el.classList.toggle('bad', !!(isTry && tc.bad));
+    q.textContent = (placed || isTry) ? '\u265B' : '';
+  }
+  boardEl.classList.toggle('solved', !!isSolved);
+  boardEl.setAttribute('aria-label', `${n} by ${n} board with ${st.length} queens placed`);
+}
+
+// ---- watch mode
+let gen, steps, backs, sols, timer = null, finished = false;
+function resetWatch(){
+  stop(); gen = search(n); steps = backs = sols = 0; finished = false;
+  draw([], null, false); stats();
+  say('Press Play or Step to begin.');
+  $('play').textContent = 'Play';
+}
+function stats(){ $('sSteps').textContent = steps; $('sBack').textContent = backs; $('sSol').textContent = sols; }
+function say(t, ok){ const s = $('status'); s.textContent = t; s.className = 'status' + (ok ? ' ok' : ''); }
+function advance(){
+  const { value: e, done } = gen.next();
+  if (done){ finished = true; stop(); say(`Search complete: ${sols} solutions for ${n} queens.`, true); return 'done'; }
+  steps++;
+  if (e.t === 'try'){
+    draw(e.st, e, false);
+    say(e.bad ? `Row ${e.r + 1}, column ${e.c + 1} is attacked. Skip it.` : `Row ${e.r + 1}, column ${e.c + 1} is free. Try it.`);
+  } else if (e.t === 'place'){
+    draw(e.st, null, false);
+    say(`Queen placed. ${e.st.length} of ${n} on the board.`);
+  } else if (e.t === 'back'){
+    backs++; draw(e.st, null, false);
+    say(`Dead end below. Remove the queen from row ${e.r + 1} and try the next column.`);
+  } else {
+    sols++; draw(e.st, null, true);
+    say(`Solution ${sols} found.`, true);
+  }
+  stats();
+  return e.t;
+}
+function tick(){
+  const r = advance();
+  if (r === 'sol') { stop(); return; }
+  if (r !== 'done') timer = setTimeout(tick, delay());
+}
+const delay = () => Math.round(600 * Math.pow(0.012, $('speed').value / 100)) + 8;
+function run(){ if (finished) return; $('play').textContent = 'Pause'; tick(); }
+function stop(){ clearTimeout(timer); timer = null; $('play').textContent = 'Play'; }
+
+$('play').onclick = () => timer ? stop() : run();
+$('step').onclick = () => { stop(); advance(); };
+$('next').onclick = () => {
+  stop();
+  let r, guard = 0;
+  do { r = advance(); guard++; } while (r !== 'sol' && r !== 'done' && guard < 1e6);
+};
+$('reset').onclick = resetWatch;
+
+// ---- browse mode
+let list = [], idx = 0;
+function showSol(i){
+  idx = (i + list.length) % list.length;
+  draw(list[idx], null, true);
+  $('bIdx').textContent = idx + 1;
+  [...$('thumbs').children].forEach((t, k) => t.setAttribute('aria-current', k === idx));
+}
+function buildBrowse(){
+  list = allSolutions(n); $('bTot').textContent = list.length;
+  const box = $('thumbs'); box.innerHTML = '';
+  list.slice(0, 60).forEach((s, k) => {
+    const b = document.createElement('button');
+    b.className = 'thumb'; b.setAttribute('aria-label', 'Solution ' + (k + 1));
+    let h = `<div class="mini" style="grid-template:repeat(${n},1fr)/repeat(${n},1fr)">`;
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++)
+      h += `<i class="${(r + c) % 2 ? 'd' : 'l'}${s[r] === c ? ' q' : ''}"></i>`;
+    b.innerHTML = h + '</div>';
+    b.onclick = () => showSol(k);
+    box.appendChild(b);
+  });
+  showSol(0);
+}
+$('prev').onclick = () => showSol(idx - 1);
+$('nextSol').onclick = () => showSol(idx + 1);
+
+// ---- tabs and size
+let mode = 'watch';
+function setMode(m){
+  mode = m; stop();
+  $('tabWatch').setAttribute('aria-selected', m === 'watch');
+  $('tabBrowse').setAttribute('aria-selected', m === 'browse');
+  $('watchCtl').hidden = m !== 'watch';
+  $('browseCtl').hidden = m !== 'browse';
+  $('thumbs').hidden = m !== 'browse';
+  buildBoard();
+  m === 'watch' ? resetWatch() : buildBrowse();
+}
+$('tabWatch').onclick = () => setMode('watch');
+$('tabBrowse').onclick = () => setMode('browse');
+$('size').oninput = e => {
+  n = +e.target.value; $('sizeOut').textContent = $('sizeOut2').textContent = n;
+  setMode(mode);
+};
+setMode('watch');
+</script>
+</body>
+</html>
